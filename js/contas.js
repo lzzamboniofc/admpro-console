@@ -54,6 +54,7 @@ function detailHtml(payload){const a=payload.conta;
  `<div class="two-col"><section>${card(`<h2>Dados do negócio</h2><dl class="facts">${[
   ['Nome',a.nome_negocio],['E-mail do dono',a.email],['Telefone',a.telefone],['Cidade/UF',[a.cidade,a.uf].filter(Boolean).join(' / ')],['Modelo',a.modelo_negocio],['Tipo',a.tipo_negocio],['Plano',a.plano],['Valor contratado',brl(a.preco_contratado_centavos)],['Status',a.status_assinatura],['Cadastro',time(a.criado_em)],['Fim do teste',date(a.trial_ate)],['Próximo vencimento',date(a.proximo_vencimento)],['Último acesso',time(a.ultimo_acesso_em)],['Versão do aplicativo',a.versao_app]
  ].map(([k,v])=>`<dt>${esc(k)}</dt><dd>${esc(v||'—')}</dd>`).join('')}</dl>`)}
+ ${card(`<h2>Equipe e uso compartilhado</h2><dl class="facts"><dt>Usuários vinculados</dt><dd>${esc(payload.equipe?.usuarios??0)}</dd><dt>Usuários ativos</dt><dd>${esc(payload.equipe?.usuarios_ativos??0)}</dd><dt>Profissionais</dt><dd>${esc(payload.equipe?.profissionais??0)}</dd><dt>Convites pendentes</dt><dd>${esc(payload.equipe?.convites_pendentes??0)}</dd></dl>`)}
  ${card(`<h2>Ações administrativas</h2><div class="stack">${button('Mudar plano','id="change-plan"')}${button('Estender teste','id="extend-trial"')}${button('Registrar pagamento','id="register-pay"')}${button('Bloquear','id="block"')}${button('Desbloquear','id="unblock"')}${button('Cancelar assinatura','id="cancel"')}${waLink(a.telefone)}</div><p class="muted">As alterações são confirmadas e registradas na auditoria do banco.</p>`)}</section>
  <section>${usoChart(payload.uso)}${card(`<h2>Pagamentos</h2>${payload.pagamentos?.length?payload.pagamentos.map(paymentLine).join(''):empty('Nenhum pagamento.')}`)}
  ${card(`<h2>Feedbacks</h2>${payload.feedbacks?.length?payload.feedbacks.map(feedbackLine).join(''):empty('Nenhum feedback.')}`)}
@@ -75,7 +76,7 @@ function payDialog(id,a,feedbackId=null){C.modal('Registrar pagamento',`<form id
    if(await C.action(()=>C.rpc(feedbackId?'console_confirmar_aviso_pagamento':'console_registrar_pagamento',args))) {C.close();C.render()}
  }; });}
 C.views.conta={
- async load(id){if(!uuid.test(id))throw Error('Identificador inválido');const [info,p]=await Promise.all([C.rpc('console_conta',{p_conta:id}),C.table('planos',t=>t.select('id,nome,preco_mensal_centavos').eq('ativo',true).order('ordem'))]);return {...info,plans:p||[]}},
+ async load(id){if(!uuid.test(id))throw Error('Identificador inválido');const [info,p,equipe]=await Promise.all([C.rpc('console_conta',{p_conta:id}),C.table('planos',t=>t.select('id,nome,preco_mensal_centavos').eq('ativo',true).order('ordem')),C.rpc('console_equipe_conta',{p_conta:id})]);return {...info,plans:p||[],equipe}},
  html(payload){return detailHtml(payload)},
  bind(root,data,id){
   const a=data.conta;
