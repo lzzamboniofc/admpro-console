@@ -1,19 +1,20 @@
-# AdmPro Console — implantação de testes (27/10/2026)
+# AdmPro Console — estado da implantação em 27/10/2026
 
 ## Concluído
+- Código-fonte do painel em repositório separado: https://github.com/lzzamboniofc/admpro-console
+- **Site publicado pelo GitHub Pages:** https://lzzamboniofc.github.io/admpro-console/
+- GitHub Actions concluído com sucesso: https://github.com/lzzamboniofc/admpro-console/actions/runs/40575845000
+- Supabase de testes `admpro-staging` (`stvenawjeyyhpvwvpjkm`) com todas as migrações do Console aplicadas.
+- Primeiro usuário administrador real habilitado em `public.admins`; `public.is_admin() = true` validado com JWT simulado para esse usuário.
+- Tabelas `notas_conta` e `auditoria` com RLS e 15 RPCs `console_*`; testes transacionais de escopo e pagamentos passaram.
+- Código estático validado por GitHub Actions (testes e checksum da UMD `@supabase/supabase-js@2.117.3`).
+- SQL, testes e documentação **não são enviados ao artefato publicado no Pages**; o website serve HTML, CSS, JS e logo.
 
-- Repositório **independente** publicado como código-fonte: https://github.com/lzzamboniofc/admpro-console
-- Supabase **admpro-staging** (`stvenawjeyyhpvwvpjkm`), migrações do Console aplicadas; não reexecute `supabase/console.sql` nesse banco.
-- Usuário Auth real cadastrado e habilitado como **administrador** em `public.admins`; o banco confirmou `is_admin() = true`.
-- RPCs administrativas e tabelas `notas_conta`, `auditoria` com RLS; testes transacionais de autorização, aviso segmentado, pagamento, feedback e auditoria aprovados.
-- `js/vendor/supabase.js` oficial @supabase/supabase-js 2.117.3, checksum no repositório e testes automatizados `tests/static-check.mjs` e `tests/view-render.mjs`.
-- Nenhuma chave secreta/service_role no front-end. Console não consulta `public.dados`.
+## Pendências de homologação
+- Testar login real com a senha escolhida diretamente no Supabase e verificar a interface.
+- Validar desktop/mobile, tema claro/escuro, 360px e ausência de erros no console.
+- Validar fluxos com contas de teste: pagamentos, alteração de plano, avisos segmentados, respostas de suporte e auditoria.
+- Revisar configurações de e-mail do Supabase Auth se houver convite/recuperação de senha.
 
-## Pendente
-
-1. **Habilitar o Pages no GitHub:** abra https://github.com/lzzamboniofc/admpro-console/settings/pages e configure **Build and deployment → Source: GitHub Actions**. O conector GitHub não oferece a operação de habilitação de Pages. Depois execute/reexecute `Publicar AdmPro Console no GitHub Pages` em Actions, se necessário.
-2. Confirmar que https://lzzamboniofc.github.io/admpro-console/ está acessível e fazer login real com o usuário administrador criado.
-3. Homologar os fluxos com usuários de teste, incluindo pagamentos simulados, filtros, tema claro/escuro e tela de 360px.
-4. Configurar e testar redirecionamentos de e-mail no Supabase Auth caso queira usar recuperação e convites por e-mail.
-
-**Importante:** o Console é administrativo, não acessa registros privados dos clientes do assinante. O GitHub Pages hospeda código estático público; a proteção dos dados depende das RPCs e RLS do Supabase. Não use para cobranças reais até homologação.
+**Não execute novamente** `supabase/console.sql` no projeto `admpro-staging`.
+A versão principal do AdmPro dos assinantes permanece intacta. O Console é uma interface pública hospedada no GitHub Pages; **os dados são protegidos pelas RPCs e RLS**, não por segredo do URL.

@@ -1,6 +1,6 @@
 # AdmPro Console — painel de administração (staging)
 
-> **Implantação de staging (27/10/2026):** migrações Supabase já aplicadas e testadas, usuário administrador real criado e habilitado, código do Console versionado no repositório independente. **Não execute `supabase/console.sql` novamente no staging.** O GitHub Pages depende de habilitação em Settings → Pages (Source: GitHub Actions). Publicação web e homologação em navegador ainda pendentes.
+> **Implantação de staging (27/10/2026):** migrações Supabase já aplicadas e testadas, usuário administrador real criado e habilitado, código do Console versionado no repositório independente. **Não execute `supabase/console.sql` novamente no staging.** O GitHub Pages está habilitado e a publicação foi concluída com sucesso por GitHub Actions. **Ainda falta homologar login e operações reais no navegador**.
 
 
 Painel **independente** do AdmPro, em HTML/CSS/JS puro, roteado por hash. O mesmo projeto Supabase atende o app e o painel; o Console nunca consulta a tabela `public.dados`. Nenhuma `service_role` é usada no navegador. **O login é seguido obrigatoriamente da RPC `is_admin()`; não-admin é desconectado.** As RLS e as RPCs verificam autorização novamente no banco: esconder a tela não substitui essa barreira.
@@ -58,9 +58,9 @@ python3 -m http.server 8010 --directory admpro-console
 
 1. **Concluído:** repositório separado `lzzamboniofc/admpro-console` criado no GitHub.
 2. **Concluído:** arquivos do Console enviados à raiz do repositório, incluindo biblioteca vendorizada, testes e workflow.
-3. Abra **Settings > Pages > Build and deployment > Source: GitHub Actions** no novo repositório.
+3. **Concluído:** GitHub Pages habilitado e configurado. O workflow de publicação reportou sucesso.
 4. A cada push em `main`, `.github/workflows/publicar-pages.yml` executa os testes, confere a UMD oficial **versão fixa 2.117.3** pelo SHA-256 e publica somente `index.html`, `css/`, `img/`, `js/` e `.nojekyll`. **Nenhuma RPC SQL ou documentação interna é servida pelo Pages.** Não há build da aplicação: apenas cópia de arquivos estáticos para publicação.
-5. Confira a aba Actions: o workflow deve mostrar resultado verde. Somente então abra `https://lzzamboniofc.github.io/admpro-console/` e faça login com o administrador criado no passo 5.
+5. **Publicado:** o workflow está verde. Abra `https://lzzamboniofc.github.io/admpro-console/` e faça login com o usuário administrador criado.
 
 O GitHub Pages serve HTML/JS sem build, mas o site exige HTTPS para o Auth. O endereço do Console não precisa ser secreto, porque a autorização é aplicada pelo Supabase. **A criação do repositório e ativação do Pages são ações manuais porque o conector GitHub disponível não possui ferramentas para criar repositórios nem configurar Pages.**
 
