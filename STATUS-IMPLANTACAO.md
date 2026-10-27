@@ -1,20 +1,19 @@
-# AdmPro Console — andamento da implantação em 27/10/2026
+# AdmPro Console — implantação de testes (27/10/2026)
 
 ## Concluído
 
-- O Supabase **admpro-staging** (`stvenawjeyyhpvwvpjkm`) recebeu as migrações `admpro_console_initial`, `admpro_console_payment_feedback_atomic`, `admpro_console_cohort_conversion_fix` e `admpro_console_audit_author_indexes`.
-- Tabelas `notas_conta` e `auditoria` com RLS; 15 funções `console_*`; preço contratado isolado do preço de tabela.
-- Testes em transações com rollback aprovaram: bloqueio de RPCs a não-admin, isolamento de `public.dados` mesmo com registros existentes, avisos segmentados, bloqueio e confirmação atômica de pagamento, feedback e auditoria.
-- A biblioteca **Supabase JS 2.117.3** foi copiada da distribuição oficial verificada pelo GitHub Actions para `js/vendor/supabase.js`.
-- `sha256sum -c js/vendor/supabase.js.sha256` passou; testes `node tests/static-check.mjs` e `node tests/view-render.mjs` passaram.
-- O workflow `.github/workflows/publicar-pages.yml` está no pacote, pronto para publicar em um repositório GitHub Pages separado.
+- Repositório **independente** publicado como código-fonte: https://github.com/lzzamboniofc/admpro-console
+- Supabase **admpro-staging** (`stvenawjeyyhpvwvpjkm`), migrações do Console aplicadas; não reexecute `supabase/console.sql` nesse banco.
+- Usuário Auth real cadastrado e habilitado como **administrador** em `public.admins`; o banco confirmou `is_admin() = true`.
+- RPCs administrativas e tabelas `notas_conta`, `auditoria` com RLS; testes transacionais de autorização, aviso segmentado, pagamento, feedback e auditoria aprovados.
+- `js/vendor/supabase.js` oficial @supabase/supabase-js 2.117.3, checksum no repositório e testes automatizados `tests/static-check.mjs` e `tests/view-render.mjs`.
+- Nenhuma chave secreta/service_role no front-end. Console não consulta `public.dados`.
 
-## Ainda precisa da sua ação
+## Pendente
 
-1. **Criar o usuário administrador no Supabase Auth.** No projeto `admpro-staging`, abra Authentication → Users → Add user e cadastre o seu e-mail com senha escolhida diretamente lá. O banco tem **0 usuários Auth e 0 administradores**; não use e-mail fictício nem compartilhe sua senha. Após criar o usuário, execute `supabase/criar-primeiro-admin.sql` no SQL Editor, trocando o e-mail de exemplo. Por segurança, use um e-mail exclusivo para a administração do Console.
-2. **Criar o repositório independente no GitHub.** O conector GitHub disponível nesta conversa não permite criar repositórios. Crie `lzzamboniofc/admpro-console`, envie o conteúdo da pasta `admpro-console` para a raiz do novo repositório e mantenha `.github/workflows/`.
-3. **Habilitar GitHub Pages.** Em Settings → Pages, selecione Source = GitHub Actions. Acompanhe Actions → Publicar AdmPro Console no GitHub Pages. Com resultado verde, o endereço previsto será `https://lzzamboniofc.github.io/admpro-console/`.
+1. **Habilitar o Pages no GitHub:** abra https://github.com/lzzamboniofc/admpro-console/settings/pages e configure **Build and deployment → Source: GitHub Actions**. O conector GitHub não oferece a operação de habilitação de Pages. Depois execute/reexecute `Publicar AdmPro Console no GitHub Pages` em Actions, se necessário.
+2. Confirmar que https://lzzamboniofc.github.io/admpro-console/ está acessível e fazer login real com o usuário administrador criado.
+3. Homologar os fluxos com usuários de teste, incluindo pagamentos simulados, filtros, tema claro/escuro e tela de 360px.
+4. Configurar e testar redirecionamentos de e-mail no Supabase Auth caso queira usar recuperação e convites por e-mail.
 
-## Atenção
-
-O endereço acima **não foi publicado nem verificado**. Não há usuário administrador real ainda. A aplicação **não está homologada para cobranças reais**, apesar de o banco de teste ter passado nas verificações transacionais. A `main` do app AdmPro segue intacta.
+**Importante:** o Console é administrativo, não acessa registros privados dos clientes do assinante. O GitHub Pages hospeda código estático público; a proteção dos dados depende das RPCs e RLS do Supabase. Não use para cobranças reais até homologação.

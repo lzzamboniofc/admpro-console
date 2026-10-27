@@ -1,0 +1,23 @@
+import {readFileSync} from 'node:fs';
+import {runInNewContext} from 'node:vm';
+import {resolve} from 'node:path';
+import assert from 'node:assert/strict';
+const base=resolve(new URL('..',import.meta.url).pathname);
+const modal={open:false,close(){},showModal(){}};
+const doc={querySelector(sel){return sel==='#modal'?modal:null}};
+const root={document:doc,window:{},localStorage:{getItem(){return null},setItem(){}},location:{hash:'#/inicio'}};
+root.window.window=root.window;
+function run(f){runInNewContext(readFileSync(resolve(base,'js',f),'utf8'),root,{filename:f})}
+run('app.js');run('dashboard.js');run('contas.js');run('gestao.js');
+const C=root.window.Console;
+assert.equal(typeof C.views.inicio.html,'function');
+const summary={total:3,trial:1,pagantes:2,atrasadas:0,bloqueadas:0,mrr_centavos:12345,receita_mes_centavos:0,novas_mes:1,cancelamentos_mes:0,churn_pct:0,conversao_90d_pct:0,ativos_7d:3};
+const chart={novas_semanas:[],receita_meses:[],modelos:[],acessos_30d:[]};
+const pending={trial_fim:[],atrasadas:[],inativas:[],feedbacks:[]};
+const home=C.views.inicio.html({resumo:summary,graficos:chart,pendencias:pending});
+assert(home.includes('Visão geral')&&home.includes('R$'),home);
+const accounts=C.views.contas.html({itens:[],total:0});assert(accounts.includes('Exportar CSV'));
+const feedback=C.views.suporte.html({itens:[],abertos:0,total:0});assert(feedback.includes('Suporte'));
+assert.equal(C.wa('11 99999-9999'),'https://wa.me/5511999999999');
+assert(!C.wa('000'));
+console.log('PASS: templates dashboard, contas, suporte e WhatsApp; HTML sem exceções em VM.');

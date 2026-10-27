@@ -1,6 +1,6 @@
 # AdmPro Console — painel de administração (staging)
 
-> **Situação em 27/10/2026:** As migrações `admpro_console_initial`, `admpro_console_payment_feedback_atomic` e `admpro_console_cohort_conversion_fix` e `admpro_console_audit_author_indexes` já foram aplicadas ao Supabase `admpro-staging`; os testes SQL de autorização, pagamento e auditoria foram aprovados com `ROLLBACK`. **Não reexecute `console.sql` nesse projeto**. Não há nenhum usuário Auth/admin no staging; o primeiro admin depende da criação do seu usuário real. O repositório GitHub Pages separado ainda precisa ser criado na conta GitHub (a integração de GitHub disponível não oferece essa operação).
+> **Implantação de staging (27/10/2026):** migrações Supabase já aplicadas e testadas, usuário administrador real criado e habilitado, código do Console versionado no repositório independente. **Não execute `supabase/console.sql` novamente no staging.** O GitHub Pages depende de habilitação em Settings → Pages (Source: GitHub Actions). Publicação web e homologação em navegador ainda pendentes.
 
 
 Painel **independente** do AdmPro, em HTML/CSS/JS puro, roteado por hash. O mesmo projeto Supabase atende o app e o painel; o Console nunca consulta a tabela `public.dados`. Nenhuma `service_role` é usada no navegador. **O login é seguido obrigatoriamente da RPC `is_admin()`; não-admin é desconectado.** As RLS e as RPCs verificam autorização novamente no banco: esconder a tela não substitui essa barreira.
@@ -9,7 +9,7 @@ Painel **independente** do AdmPro, em HTML/CSS/JS puro, roteado por hash. O mesm
 
 O projeto Supabase `admpro-staging` (`stvenawjeyyhpvwvpjkm`, São Paulo) já tinha as tabelas `planos`, `contas`, `membros`, `dados`, `pagamentos`, `uso_diario`, `avisos`, `feedbacks`, `config_sistema`, `admins`, além de RLS, Auth e agendamento de status. Não havia Console, `notas_conta`, `auditoria` nem RPCs do painel.
 
-Este pacote inclui `supabase/console.sql` (migração complementar, sem reexecutar `schema.sql`), telas de indicadores, contas, pagamentos, planos, avisos, suporte, configuração e auditoria, tema claro/escuro, tabelas responsivas, CSV, modal de confirmação, testes e scripts. Não possui build nem framework. A migração foi aplicada no Supabase de staging e o arquivo UMD já está incluído neste pacote; **ainda falta criar o primeiro administrador, publicar o endereço separado e homologar login e cobranças no navegador antes de uso real**.
+Este pacote inclui `supabase/console.sql` (migração complementar, sem reexecutar `schema.sql`), telas de indicadores, contas, pagamentos, planos, avisos, suporte, configuração e auditoria, tema claro/escuro, tabelas responsivas, CSV, modal de confirmação, testes e scripts. Não possui build nem framework. A migração foi aplicada no Supabase de staging e o arquivo UMD já está incluído neste pacote; **o primeiro administrador já está habilitado, mas ainda falta habilitar Pages e homologar login e cobranças no navegador antes de uso real**.
 
 ## Estrutura
 
@@ -31,7 +31,7 @@ admpro-console/
 
 1. Confirme o projeto Supabase `admpro-staging`. Faça backup do banco de testes antes de aplicar qualquer migração.
 2. **Se for um banco novo, não o staging já migrado:** abra **SQL Editor** e execute `supabase/console.sql` como proprietário do banco, apenas **uma vez**. A migração é complementar e ativa RLS em `notas_conta` e `auditoria`. Não reexecute o schema inicial do app. `preco_acordado_centavos` é adicionado a `contas` e preenchido para contratos existentes, preservando preços quando um plano for editado.
-3. **Biblioteca instalada:** este ZIP já contém `js/vendor/supabase.js` e o checksum `js/vendor/supabase.js.sha256`, obtidos da distribuição oficial **@supabase/supabase-js@2.117.3** por GitHub Actions. Para revalidar, rode `sha256sum -c js/vendor/supabase.js.sha256`. O script opcional `bash scripts/baixar-vendor.sh` obtém novamente o pacote oficial em um computador conectado à internet. Na publicação, o GitHub Actions também verifica o SHA fixado. **O navegador nunca usa CDN.**
+3. **Biblioteca instalada:** este ZIP já contém `js/vendor/supabase.js` e o checksum `js/vendor/supabase.js.sha256`, obtidos da distribuição oficial **@supabase/supabase-js@2.117.3** por GitHub Actions. Para revalidar, rode `sha256sum -c js/vendor/supabase.js.sha256`. O script opcional `bash scripts/baixar-vendor.sh` obtém novamente o pacote oficial em um computador conectado à internet. Na publicação, o GitHub Actions valida a cópia versionada do UMD e seu SHA-256, sem baixar código em tempo de execução. **O navegador nunca usa CDN.**
 4. Revise `js/config.js`: já vem configurado **somente para staging**, com URL e chave *publishable* pública. Não insira chave `service_role`, token secreto ou senha.
 5. Crie o primeiro usuário pelo Supabase Auth (Authentication > Users > Add user), com e-mail confirmado. Escolha sua própria senha **diretamente no Supabase** (não envie credenciais para ninguém). Em seguida, no SQL Editor, execute `supabase/criar-primeiro-admin.sql` após substituir o email de exemplo; alternativamente use a consulta abaixo:
 
@@ -56,10 +56,10 @@ python3 -m http.server 8010 --directory admpro-console
 
 **Use outro repositório GitHub**, por exemplo `lzzamboniofc/admpro-console`, com GitHub Pages em `https://lzzamboniofc.github.io/admpro-console/` (endereço previsto, válido somente após ativar Pages). Esse repositório é **independente** do app dos assinantes.
 
-1. No GitHub, crie um **novo repositório** `admpro-console` (público para Pages no plano gratuito).
-2. Descompacte o ZIP e envie **o conteúdo interno** de `admpro-console/` para a raiz do novo repositório; a pasta `.github/workflows/` deve ser mantida. Não envie o ZIP como um arquivo único.
+1. **Concluído:** repositório separado `lzzamboniofc/admpro-console` criado no GitHub.
+2. **Concluído:** arquivos do Console enviados à raiz do repositório, incluindo biblioteca vendorizada, testes e workflow.
 3. Abra **Settings > Pages > Build and deployment > Source: GitHub Actions** no novo repositório.
-4. A cada push em `main`, `.github/workflows/publicar-pages.yml` executa os testes, baixa o UMD da **distribuição oficial npm versão fixa 2.117.3**, confere o SHA-256 e publica somente `index.html`, `css/`, `img/`, `js/` e `.nojekyll`. **Nenhuma RPC SQL ou documentação interna é servida pelo Pages.** Não há build da aplicação: apenas cópia de arquivos estáticos para publicação.
+4. A cada push em `main`, `.github/workflows/publicar-pages.yml` executa os testes, confere a UMD oficial **versão fixa 2.117.3** pelo SHA-256 e publica somente `index.html`, `css/`, `img/`, `js/` e `.nojekyll`. **Nenhuma RPC SQL ou documentação interna é servida pelo Pages.** Não há build da aplicação: apenas cópia de arquivos estáticos para publicação.
 5. Confira a aba Actions: o workflow deve mostrar resultado verde. Somente então abra `https://lzzamboniofc.github.io/admpro-console/` e faça login com o administrador criado no passo 5.
 
 O GitHub Pages serve HTML/JS sem build, mas o site exige HTTPS para o Auth. O endereço do Console não precisa ser secreto, porque a autorização é aplicada pelo Supabase. **A criação do repositório e ativação do Pages são ações manuais porque o conector GitHub disponível não possui ferramentas para criar repositórios nem configurar Pages.**
@@ -88,7 +88,7 @@ select proname from pg_proc join pg_namespace n on n.oid=pronamespace where n.ns
 select count(*) from public.admins;
 ```
 
-**Cuidado:** o último comando deve mostrar 0 até você conceder acesso ao primeiro usuário. Um visitante sem cadastro nunca vira admin sozinho. Não compartilhe sua senha nem uma chave `service_role`.
+**Staging atual:** o primeiro administrador já foi habilitado diretamente pela tabela `public.admins`. Confirme com `select count(*) from public.admins;` (esperado: 1). Nunca compartilhe a senha ou uma chave `service_role`.
 
 ## Conferência SQL — indicadores do dashboard
 
