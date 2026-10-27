@@ -9,6 +9,7 @@ function bucket(title,rows,desc){return card(`<div class="section-head"><h2>${es
 C.views.inicio={
  async load(){const [resumo,graficos,pendencias,equipe]=await Promise.all(['console_resumo','console_graficos','console_pendencias','console_equipe_metricas'].map(n=>C.rpc(n)));return{resumo,graficos,pendencias,equipe}},
  html({resumo:r,graficos:g,pendencias:p,equipe:e}){
+  e=e||{};
   const entries=[['Contas totais',r.total],['Em teste',r.trial],['Pagantes ativas',r.pagantes],['Atrasadas',r.atrasadas],['Bloqueadas',r.bloqueadas],['MRR',brl(r.mrr_centavos)],['Receita recebida (mês)',brl(r.receita_mes_centavos)],['Novas contas (mês)',r.novas_mes],['Cancelamentos (mês)',r.cancelamentos_mes],['Churn mensal',`${r.churn_pct||0}%`],['Conversão 90 dias',`${r.conversao_90d_pct||0}%`],['Ativas últimos 7 dias',r.ativos_7d],['Usuários com acesso',e.usuarios],['Usuários ativos',e.usuarios_ativos],['Profissionais',e.profissionais],['Contas multiprofissionais',e.contas_multiprofissionais]];
   return h('Visão geral','Assinaturas, receita e sinais de atenção.')+
     `<section class="stats-grid">${entries.map(([name,value])=>card(`<small>${esc(name)}</small><strong>${esc(value)}</strong>`,'stat')).join('')}</section>`+
