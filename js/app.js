@@ -35,7 +35,7 @@
   async function rpc(name,args={}){if(!C.authorized)throw Error('Acesso restrito');const r=await C.sb.rpc(name,args);if(r.error)throw r.error;return r.data}
   async function table(name,operation){
     if(!C.authorized)throw Error('Acesso restrito');
-    if(!['planos','avisos','config_sistema','notas_conta'].includes(name))throw Error('Tabela não liberada para acesso direto');
+    if(!['planos','avisos','config_sistema','notas_conta','automacoes_alerta','alertas_entregas'].includes(name))throw Error('Tabela não liberada para acesso direto');
     const r=await operation(C.sb.from(name));if(r.error)throw r.error;return r.data;
   }
   async function action(fn,message='Operação concluída') {try{await fn();toast(message);return true}catch(e){console.error('Console:',e);toast(e.message||'Falha ao salvar.',true);return false}}
