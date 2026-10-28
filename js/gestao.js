@@ -96,7 +96,7 @@ function confirmarPedidoPlano(p){
    box.querySelector('form').onsubmit=async e=>{
      e.preventDefault();
      const f=new FormData(e.currentTarget),dia=String(f.get('pago_em'));
-     if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(dia)){C.toast('Data inválida.',true);return}
+     if(!/^\d{4}-\d{2}-\d{2}$/.test(dia)){C.toast('Data inválida.',true);return}
      const dataHora=dia===hoje?new Date().toISOString():dia+'T12:00:00-03:00';
      if(!await C.ask('Confirmar recebimento no extrato',`Você conferiu o Pix de ${brl(p.valor_centavos)}? Após confirmar, o plano ${p.plano_solicitado} será ativado imediatamente e o pagamento será registrado.`,'Confirmar recebimento'))return;
      if(await C.action(()=>C.rpc('console_confirmar_pedido_plano',{
