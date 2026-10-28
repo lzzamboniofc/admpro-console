@@ -173,7 +173,10 @@ C.views.suporte={
    ]);
    return {dados,pedidos};
  },
- html({dados:r,pedidos}){
+ html(payload){
+   // Compatível também com respostas antigas de feedback (sem envelope dados/pedidos).
+   const r=payload?.dados||payload||{itens:[],abertos:0,total:0};
+   const pedidos=payload?.pedidos||{itens:[],total:0,para_conferir:0};
    const aguardando=(pedidos?.itens||[]).filter(x=>x.status==='em_analise');
    return h('Suporte','Caixa de entrada, respostas e solicitações dos assinantes.')+
      card('<div class="section-head"><div><h2>Mensagens de pagamento dos planos</h2>'+
@@ -188,7 +191,8 @@ C.views.suporte={
      card(`<div class="filters narrow">${select('Tipo','tipo',[['','Todos'],...tipos.map(x=>[x,x])],S.tipo)}${select('Status','status',[['','Todos'],['aberto','Aberto'],['respondido','Respondido'],['fechado','Fechado']],S.status)}<button type="button" class="btn" id="support-filter">Filtrar</button></div><p><b>${r.abertos||0}</b> solicitações abertas no total.</p>`)+
      card((r.itens.length?`<div class="table-wrap"><table><thead><tr>${['Conta','Tipo','Status','Mensagem','Data','Ações'].map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>${r.itens.map(feedbackRow).join('')}</tbody></table></div>`:empty('Nenhum feedback encontrado.'))+C.pagination(r.total,S.pagina));
  },
- bind(root,{dados:r}){
+ bind(root,payload){
+   const r=payload?.dados||payload||{itens:[],total:0};
    root.querySelector('#support-filter').onclick=()=>{S.tipo=root.querySelector('[name="tipo"]').value;S.status=root.querySelector('[name="status"]').value;S.pagina=1;C.render()};
    C.bindPages(root,p=>{S.pagina=p;C.render()});
    root.querySelectorAll('[data-reply]').forEach(b=>b.onclick=()=>{const f=r.itens.find(x=>x.id===b.dataset.reply);if(f)replyDialog(f)});
