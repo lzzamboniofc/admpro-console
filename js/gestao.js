@@ -166,10 +166,33 @@ function replyDialog(f,refuse=false){C.modal(refuse?'Recusar aviso de pagamento'
  });}
 const tipos=['duvida','problema','sugestao','pagamento'];
 C.views.suporte={
- async load(){return C.rpc('console_feedbacks',{p_tipo:S.tipo,p_status:S.status,p_pagina:S.pagina})},
- html(r){return h('Suporte','Caixa de entrada e respostas enviadas aos usuários.')+card(`<div class="filters narrow">${select('Tipo','tipo',[['','Todos'],...tipos.map(x=>[x,x])],S.tipo)}${select('Status','status',[['','Todos'],['aberto','Aberto'],['respondido','Respondido'],['fechado','Fechado']],S.status)}<button type="button" class="btn" id="support-filter">Filtrar</button></div><p><b>${r.abertos||0}</b> solicitações abertas no total.</p>`)+
- card((r.itens.length?`<div class="table-wrap"><table><thead><tr>${['Conta','Tipo','Status','Mensagem','Data','Ações'].map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>${r.itens.map(feedbackRow).join('')}</tbody></table></div>`:empty('Nenhum feedback encontrado.'))+C.pagination(r.total,S.pagina))},
- bind(root,r){root.querySelector('#support-filter').onclick=()=>{S.tipo=root.querySelector('[name="tipo"]').value;S.status=root.querySelector('[name="status"]').value;S.pagina=1;C.render()};C.bindPages(root,p=>{S.pagina=p;C.render()});root.querySelectorAll('[data-reply]').forEach(b=>b.onclick=()=>{const f=r.itens.find(x=>x.id===b.dataset.reply);if(f)replyDialog(f)})}
+ async load(){
+   const [dados,pedidos]=await Promise.all([
+     C.rpc('console_feedbacks',{p_tipo:S.tipo,p_status:S.status,p_pagina:S.pagina}),
+     C.rpc('console_pedidos_plano',{p_situacao:'pendentes',p_pagina:1})
+   ]);
+   return {dados,pedidos};
+ },
+ html({dados:r,pedidos}){
+   const aguardando=(pedidos?.itens||[]).filter(x=>x.status==='em_analise');
+   return h('Suporte','Caixa de entrada, respostas e solicitações dos assinantes.')+
+     card('<div class="section-head"><div><h2>Mensagens de pagamento dos planos</h2>'+
+       '<p class="muted">Os avisos “Já fiz o Pix” ficam vinculados à solicitação de plano.</p></div>'+
+       '<a href="#/pagamentos" class="btn">Abrir pagamentos →</a></div>'+
+       '<p><b>'+Number(pedidos?.para_conferir||0)+'</b> Pix aguardando conferência · <b>'+
+       Number(pedidos?.total||0)+'</b> pedidos em aberto.</p>'+
+       (aguardando.length?aguardando.slice(0,8).map(x=>'<div class="action-row"><div><strong>'+esc(x.nome_negocio)+'</strong>'+
+         '<p>'+esc(x.plano_anterior)+' → '+esc(x.plano_solicitado)+' · '+brl(x.valor_centavos)+'</p>'+
+         (x.declaracao_cliente?'<small>'+esc(x.declaracao_cliente)+'</small>':'')+
+         '</div><a href="#/pagamentos" class="btn outline compact">Conferir Pix</a></div>').join(''):'') )+
+     card(`<div class="filters narrow">${select('Tipo','tipo',[['','Todos'],...tipos.map(x=>[x,x])],S.tipo)}${select('Status','status',[['','Todos'],['aberto','Aberto'],['respondido','Respondido'],['fechado','Fechado']],S.status)}<button type="button" class="btn" id="support-filter">Filtrar</button></div><p><b>${r.abertos||0}</b> solicitações abertas no total.</p>`)+
+     card((r.itens.length?`<div class="table-wrap"><table><thead><tr>${['Conta','Tipo','Status','Mensagem','Data','Ações'].map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>${r.itens.map(feedbackRow).join('')}</tbody></table></div>`:empty('Nenhum feedback encontrado.'))+C.pagination(r.total,S.pagina));
+ },
+ bind(root,{dados:r}){
+   root.querySelector('#support-filter').onclick=()=>{S.tipo=root.querySelector('[name="tipo"]').value;S.status=root.querySelector('[name="status"]').value;S.pagina=1;C.render()};
+   C.bindPages(root,p=>{S.pagina=p;C.render()});
+   root.querySelectorAll('[data-reply]').forEach(b=>b.onclick=()=>{const f=r.itens.find(x=>x.id===b.dataset.reply);if(f)replyDialog(f)});
+ }
 };
 function planoForm(p={}){
  return `<form class="form-grid" id="plan-form">
