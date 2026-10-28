@@ -24,3 +24,11 @@ html[data-theme=dark] .logo-dark{display:block}
   .action-row:has(.automation-description) .stack.horizontal{width:100%}
   .action-row:has(.automation-description) .stack.horizontal .btn{flex:1 1 auto}
 }
+
+/* Registros financeiros irreversíveis permanecem no histórico. */
+.badge-estornado,.badge-cancelado{background:#fce3df;color:#973e39}
+html[data-theme=dark] .badge-estornado,html[data-theme=dark] .badge-cancelado{
+ background:#65312f;color:#ffe4df;filter:none
+}
+.payment-adjust-summary{grid-column:1/-1;padding:15px;border:1px solid var(--line);background:var(--bg);border-radius:12px}
+.payment-adjust-summary p{margin:6px 0 0}
