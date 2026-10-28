@@ -6,22 +6,25 @@ const P=C.state.pagamentos ||= {aba:'pago',mes:'',pagina:1};
 const S=C.state.suporte ||= {tipo:'',status:'',pagina:1};
 const audit=C.state.auditoria ||= {pagina:1};
 function td(l,v){return `<td data-label="${esc(l)}">${v}</td>`}
-function payRow(p){return `<tr>${td('Negócio',`<a href="#/conta/${esc(p.conta_id)}">${esc(p.nome_negocio)}</a>`)}${td('Referência',esc(p.referencia))}${td('Valor',brl(p.valor_centavos))}${td('Status',badge(p.status))}${td('Forma',esc(p.forma||'—'))}${td('Data',date(p.pago_em||p.criado_em))}${td('Ações',waLink(p.telefone))}</tr>`}
+function payRow(p){return `<tr>${td('Negócio',`<a href="#/conta/${esc(p.conta_id)}">${esc(p.nome_negocio)}</a>`)}${td('Referência',esc(p.referencia))}${td('Valor',brl(p.valor_centavos))}${td('Status',badge(p.status))}${td('Forma',esc(p.forma||'—'))}${td('Data',date(p.pago_em||p.criado_em))}${td('Ações',`<div class="stack horizontal">${p.status==='pago'||p.status==='pendente'?button('Ajustar',`data-adjust-payment="${esc(p.id)}"`):'<small>Histórico preservado</small>'}${waLink(p.telefone)}</div>`)}</tr>`}
 function feedbackRow(f){return `<tr>${td('Conta',`<a href="#/conta/${esc(f.conta_id)}">${esc(f.nome_negocio)}</a>`)}${td('Tipo',esc(f.tipo))}${td('Status',badge(f.status))}${td('Mensagem',`<div class="prewrap">${esc(f.mensagem)}</div>${f.resposta?`<small>Resposta: ${esc(f.resposta)}</small>`:''}`)}${td('Data',time(f.criado_em))}${td('Ações',`<div class="stack horizontal"><button class="btn outline compact" data-reply="${esc(f.id)}">Responder</button>${waLink(f.telefone)}</div>`)}</tr>`}
 C.views.pagamentos={
  async load(){return Promise.all([C.rpc('console_pagamentos',{p_aba:P.aba,p_mes:P.mes,p_pagina:P.pagina}),C.rpc('console_feedbacks',{p_tipo:'pagamento',p_status:'aberto',p_pagina:1})]).then(([data,alerts])=>({data,alerts}))},
  html({data:r,alerts}){return h('Pagamentos','Conferência, cobrança e registros manuais.',button('Registrar pagamento','id="pay-new"'))+
-  `<div class="tabs" role="tablist">${[['pago','Recebidos'],['pendente','Pendentes'],['atrasado','Atrasados']].map(([id,title])=>`<button type="button" role="tab" aria-selected="${id===P.aba}" data-tab="${id}" class="${P.aba===id?'active':''}">${title}</button>`).join('')}</div>`+
+  `<div class="tabs" role="tablist">${[['pago','Recebidos'],['pendente','Pendentes'],['atrasado','Atrasados'],['estornado','Estornados'],['cancelado','Cancelados']].map(([id,title])=>`<button type="button" role="tab" aria-selected="${id===P.aba}" data-tab="${id}" class="${P.aba===id?'active':''}">${title}</button>`).join('')}</div>`+
   card(`<div class="filter-line">${input('Referência / mês','mes',P.mes,'month')}<button type="button" class="btn outline" id="pay-filter">Aplicar filtro</button></div><div class="mini-stats"><span>Total de registros: <b>${r.total}</b></span><span>Soma filtrada: <b>${brl(r.total_centavos)}</b></span></div>`)+
-  card(`<h2>${P.aba==='pago'?'Pagamentos recebidos':P.aba==='pendente'?'Pagamentos pendentes':'Pagamentos atrasados'}</h2>`+
+  card(`<h2>${P.aba==='pago'?'Pagamentos recebidos':P.aba==='pendente'?'Pagamentos pendentes':P.aba==='estornado'?'Estornos registrados':P.aba==='cancelado'?'Pagamentos cancelados':'Pagamentos atrasados'}</h2>`+
     (r.itens.length?`<div class="table-wrap"><table><thead><tr>${['Negócio','Referência','Valor','Status','Forma','Data','Ações'].map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>${r.itens.map(payRow).join('')}</tbody></table></div>`:empty('Nenhum pagamento encontrado.'))+C.pagination(r.total,P.pagina))+
   card(`<h2>Avisos “Já paguei” para conferência</h2><p class="muted">O aviso não confirma pagamento automaticamente.</p>${alerts.itens?.length?alerts.itens.map(f=>`<div class="action-row"><div><a href="#/conta/${esc(f.conta_id)}"><b>${esc(f.nome_negocio)}</b></a><p>${esc(f.mensagem)}</p><small>${time(f.criado_em)}</small></div><div class="stack horizontal"><button class="btn compact" data-confirm-alert="${esc(f.id)}">Confirmar</button><button class="btn outline compact" data-refuse-alert="${esc(f.id)}">Recusar</button></div></div>`).join(''):empty('Nenhum aviso pendente.')}`);
  },
- bind(root,{alerts}){
+ bind(root,{alerts,data}){
   root.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{P.aba=b.dataset.tab;P.pagina=1;C.render()});
   root.querySelector('#pay-filter').onclick=()=>{P.mes=root.querySelector('[name="mes"]').value;P.pagina=1;C.render()};
   C.bindPages(root,p=>{P.pagina=p;C.render()});
   root.querySelector('#pay-new').onclick=()=>selectAccountForPayment();
+  root.querySelectorAll('[data-adjust-payment]').forEach(b=>b.onclick=()=>{
+    const p=(data?.itens||[]).find(x=>x.id===b.dataset.adjustPayment);if(p)C.adjustPayment(p);
+  });
   root.querySelectorAll('[data-confirm-alert]').forEach(b=>b.onclick=()=>{const f=alerts.itens.find(x=>x.id===b.dataset.confirmAlert);if(!f)return;
     C.modal('Confirmar pagamento informado',`<p>Confirme os dados com o extrato antes de registrar:</p><p><b>${esc(f.nome_negocio)}</b><br>${esc(f.mensagem)}</p><a href="#/conta/${esc(f.conta_id)}">Consultar conta</a><div class="actions"><button type="button" class="btn" id="open-payment">Informar valor e referência</button></div>`,box=>{
       box.querySelector('#open-payment').onclick=()=>{C.close();C.payDialog(f.conta_id,{nome_negocio:f.nome_negocio,preco_contratado_centavos:0},f.id)};
@@ -40,6 +43,35 @@ async function selectAccountForPayment(){
   };
  });
 }
+function adjustPayment(p){
+ if(!p||!['pago','pendente'].includes(p.status))return;
+ const alvo=p.nome_negocio||'esta empresa',reembolso=p.status==='pago';
+ C.modal('Ajustar pagamento',`<form id="adjust-pay" class="form-grid">
+  <div class="payment-adjust-summary"><b>${esc(alvo)}</b><p>Referência: ${esc(p.referencia)} · ${brl(p.valor_centavos)} · Status: ${esc(p.status)}</p></div>
+  ${select('O que fazer?','acao',[
+    ['cancelar','Cancelar lançamento incorreto'],
+    ...(reembolso?[['estornar','Registrar devolução total (estorno)']]:[])
+  ])}
+  <label class="field">Motivo (obrigatório)<textarea name="motivo" required minlength="5" maxlength="1500" rows="3" placeholder="Descreva por que o pagamento será cancelado ou devolvido."></textarea></label>
+  <p class="muted">Nenhum pagamento será excluído definitivamente. Estornar registra a devolução no financeiro, mas não envia dinheiro: efetue a devolução real pelo Pix/cartão/banco. O vencimento da assinatura não será alterado automaticamente.</p>
+  <div class="actions"><button type="button" class="btn outline" id="adjust-cancel">Voltar</button><button type="submit" class="btn danger-btn">Confirmar ajuste</button></div>
+ </form>`,box=>{
+   box.querySelector('#adjust-cancel').onclick=C.close;
+   box.querySelector('form').onsubmit=async e=>{
+     e.preventDefault();const d=new FormData(e.currentTarget);
+     const acao=d.get('acao'),motivo=String(d.get('motivo')||'').trim();
+     if(motivo.length<5){C.toast('Descreva o motivo do ajuste.',true);return;}
+     if(!await C.ask('Confirmar ajuste financeiro',acao==='estornar'
+       ?'Confirma que a devolução total foi ou será realizada fora do AdmPro? O registro original permanecerá no histórico.'
+       :'Cancelar este lançamento? Ele sairá dos recebimentos, mas continuará no histórico para auditoria.','Confirmar'))return;
+     if(await C.action(async()=>{
+       const mensagem=await C.rpc('console_ajustar_pagamento',{p_pagamento:p.id,p_acao:acao,p_motivo:motivo});
+       C.toast(mensagem);
+     },'Ajuste registrado')){C.close();C.render();}
+   };
+ });
+}
+C.adjustPayment=adjustPayment;
 function replyDialog(f,refuse=false){C.modal(refuse?'Recusar aviso de pagamento':'Responder ao suporte',`<form id="reply-form">${select('Status','status',[['aberto','Aberto'],['respondido','Respondido'],['fechado','Fechado']],refuse?'respondido':'respondido')}<label class="field">Resposta para o usuário<textarea name="resposta" required maxlength="5000">${refuse?'Não foi possível confirmar o pagamento. Envie o comprovante e confira os dados informados.':esc(f.resposta||'')}</textarea></label><p class="muted">A resposta aparecerá no aplicativo do assinante.</p><div class="actions"><button type="submit" class="btn">Salvar resposta</button></div></form>`,box=>{
   box.querySelector('form').onsubmit=async e=>{e.preventDefault();const d=new FormData(e.currentTarget);if(!await C.ask('Confirmar resposta','Enviar esta resposta para o assinante e alterar o status da solicitação?','Enviar'))return;
     if(await C.action(()=>C.rpc('console_responder_feedback',{p_feedback:f.id,p_resposta:d.get('resposta'),p_status:d.get('status')}))){C.close();C.render()}
@@ -76,8 +108,8 @@ C.views.planos={
 function editPlan(p){C.modal(p?'Editar plano':'Novo plano',planoForm(p||{}),box=>{box.querySelector('form').onsubmit=async e=>{
  e.preventDefault();const d=new FormData(e.currentTarget);let recursos;try{recursos=JSON.parse(String(d.get('recursos')));if(!recursos||Array.isArray(recursos)||typeof recursos!=='object')throw Error('JSON de recursos deve ser um objeto')}catch(err){C.toast(err.message,true);return}
  const payload={nome:d.get('nome'),preco_mensal_centavos:Math.round(Number(d.get('preco'))*100),limite_clientes:d.get('clientes')===''?null:Number(d.get('clientes')),limite_servicos_mes:d.get('servicos')===''?null:Number(d.get('servicos')),ativo:d.get('ativo')==='true',ordem:Number(d.get('ordem')),recursos};
- if(p)payload.id=p.id;
- if(p?.preco_mensal_centavos!==payload.preco_mensal_centavos&& !await C.ask('Confirmar mudança de preço',`Alterar preço de ${p.nome}? Contratos existentes manterão os valores acordados.`, 'Alterar preço'))return;
+ if(p?.id)payload.id=p.id;
+ if(p && p.preco_mensal_centavos!==payload.preco_mensal_centavos && !await C.ask('Confirmar mudança de preço',`Alterar preço de ${p.nome}? Contratos existentes manterão os valores acordados.`, 'Alterar preço'))return;
  if(await C.action(()=>C.table('planos',t=>t.upsert(payload).select('id')))){C.close();C.render()}
  }});}
 function avisoForm(p={}){const publico=['todos','trial','atrasada'].includes(p.publico)?p.publico:'conta';return `<form id="notice-form" class="form-grid">
