@@ -25,7 +25,7 @@ C.views.inicio={
     '<span><b>'+Number(pedidos?.total||0)+'</b> pedido(s) em aberto</span></div>'+
     (fila.length?fila.slice(0,6).map(v=>'<div class="action-row"><div><strong>'+esc(v.nome_negocio)+'</strong>'+
       '<p>'+esc(v.plano_anterior)+' → <b>'+esc(v.plano_solicitado)+'</b> · '+brl(v.valor_centavos)+'</p>'+
-      '<small>'+(v.status==='em_analise'?'Pix informado — aguardando conferência':'Aguardando transferência Pix')+'</small></div>'+
+      '<small>'+(v.status==='em_analise'?'Pix informado — aguardando conferência':'Aguardando transferência Pix')+'</small>'+ (v.declaracao_cliente?'<p class="muted">Mensagem: '+esc(v.declaracao_cliente)+'</p>':'')+'</div>'+
       '<a class="btn outline compact" href="#/pagamentos">Abrir pedido</a></div>').join(''):
       '<p class="muted">Nenhum pedido de plano pendente no momento.</p>'));
   return h('Visão geral','Assinaturas, receita e sinais de atenção.')+
