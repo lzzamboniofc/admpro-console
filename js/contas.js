@@ -42,7 +42,7 @@ C.views.contas={
  bind(root){const form=root.querySelector('#filtros-contas');form.onsubmit=e=>{e.preventDefault();const d=new FormData(form);['busca','status','plano','modelo','uf','inicio','fim','ordem'].forEach(k=>F[k]=String(d.get(k)||''));F.desc=d.get('desc')==='true';F.pagina=1;C.render()};root.querySelector('#csv-export').onclick=()=>C.action(exportCSV,'CSV gerado.');C.bindPages(root,p=>{F.pagina=p;C.render()})}
 };
 function usoChart(rows){const series=rows||[],max=Math.max(1,...series.map(x=>x.acessos||0));return card(`<h2>Acessos nos últimos 30 dias</h2><div class="chart-scroll"><div class="bars">${series.map(x=>`<div class="bar-item"><span class="bar-number">${x.acessos}</span><div class="bar-track"><div class="bar" style="height:${Math.max(2,100*x.acessos/max)}%"></div></div><small>${date(x.dia).slice(0,5)}</small></div>`).join('')}</div></div>`) }
-function paymentLine(p){return `<div class="detail-line"><b>${esc(p.referencia)}</b><span>${brl(p.valor_centavos)}</span>${badge(p.status)}<span>${date(p.pago_em||p.criado_em)}</span></div>`}
+function paymentLine(p){return `<div class="detail-line"><b>${esc(p.referencia)}</b><span>${brl(p.valor_centavos)}</span>${badge(p.status)}<span>${date(p.pago_em||p.criado_em)}</span>${['pago','pendente'].includes(p.status)?button('Cancelar / devolver',`data-payment-adjust="${esc(p.id)}"`):'<small>Histórico mantido</small>'}</div>`}
 function feedbackLine(f){return `<div class="detail-line"><b>${esc(f.tipo)}</b>${badge(f.status)}<span>${esc(f.mensagem)}</span>${f.resposta?`<p>Resposta: ${esc(f.resposta)}</p>`:''}</div>`}
 const uuid=/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 async function doAction(id,title,description,action,value='',confirm='Confirmar'){
@@ -80,9 +80,27 @@ C.views.conta={
  html(payload){return detailHtml(payload)},
  bind(root,data,id){
   const a=data.conta;
-  root.querySelector('#change-plan').onclick=()=>C.modal('Mudar plano',`<form id="set-plan">${select('Novo plano','plano',data.plans.map(p=>[p.id,p.nome+' — '+brl(p.preco_mensal_centavos)]),a.plano_id)}<div class="actions"><button type="submit" class="btn">Confirmar alteração</button></div></form>`,box=>{box.querySelector('form').onsubmit=async e=>{e.preventDefault();const plan=C.fieldval(e.currentTarget,'plano');C.close();doAction(id,'Confirmar mudança de plano','Ao trocar o plano, o preço contratado será atualizado para o preço atual desse plano.','plano',plan,'Mudar plano')}});
+  root.querySelector('#change-plan').onclick=()=>C.modal('Mudar plano',`<form id="set-plan">${select('Novo plano','plano',data.plans.map(p=>[p.id,p.nome+' — '+brl(p.preco_mensal_centavos)]),a.plano_id)}
+ <p class="muted">A troca aplica imediatamente os limites e o preço do novo plano. Se a conta estiver em teste, ela será ativada administrativamente e terá vencimento em um mês quando o plano for pago. A operação não registra pagamento.</p>
+ <div class="actions"><button type="button" class="btn outline" id="set-plan-cancel">Cancelar</button><button type="submit" class="btn">Aplicar novo plano</button></div></form>`,box=>{
+ box.querySelector('#set-plan-cancel').onclick=C.close;
+ box.querySelector('form').onsubmit=async e=>{
+  e.preventDefault();
+  const plan=C.fieldval(e.currentTarget,'plano'),novo=data.plans.find(p=>p.id===plan);
+  if(!novo){C.toast('Selecione um plano válido.',true);return}
+  if(plan===a.plano_id){C.toast('A empresa já está neste plano.');C.close();return}
+  if(!await C.ask('Confirmar mudança de plano',`Alterar de ${a.plano} para ${novo.nome} (${brl(novo.preco_mensal_centavos)}/mês)? A mudança de limites será imediata e o usuário precisará atualizar o AdmPro.`,'Mudar plano'))return;
+  if(await C.action(()=>C.rpc('console_acao_conta',{p_conta:id,p_acao:'plano',p_valor:String(plan)}),'Plano atualizado com sucesso')){
+   C.close();C.render();
+  }
+ };
+ });
   root.querySelector('#extend-trial').onclick=()=>C.modal('Estender teste',`<form id="extend-form">${select('Período','dias',[['7','7 dias'],['14','14 dias'],['30','30 dias']])}<div class="actions"><button type="submit" class="btn">Continuar</button></div></form>`,box=>{box.querySelector('form').onsubmit=e=>{e.preventDefault();const days=C.fieldval(e.currentTarget,'dias');C.close();doAction(id,'Estender teste',`Adicionar ${days} dias de teste?`,'estender',days,'Estender')}});
   root.querySelector('#register-pay').onclick=()=>payDialog(id,a);
+   root.querySelectorAll('[data-payment-adjust]').forEach(b=>b.onclick=()=>{
+    const pagamento=(data.pagamentos||[]).find(x=>x.id===b.dataset.paymentAdjust);
+    if(pagamento)C.adjustPayment({...pagamento,nome_negocio:a.nome_negocio});
+   });
   root.querySelector('#block').onclick=()=>doAction(id,'Bloquear conta','A conta continuará com leitura dos próprios dados, mas não poderá salvar alterações.','bloquear','','Bloquear');
   root.querySelector('#unblock').onclick=()=>doAction(id,'Desbloquear conta','Restaurar a possibilidade de edição segundo a situação de vencimento?','desbloquear','','Desbloquear');
   root.querySelector('#cancel').onclick=()=>doAction(id,'Cancelar assinatura','Atenção: a conta será marcada como cancelada. Esta ação fica registrada na auditoria.','cancelar','','Cancelar assinatura');
