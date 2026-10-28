@@ -204,6 +204,7 @@ function planoForm(p={}){
  ${input('Preço mensal (R$)','preco',p.preco_mensal_centavos==null?'0':(p.preco_mensal_centavos/100).toFixed(2),'number','min="0" step="0.01" required')}
  ${input('Limite de clientes (vazio = ilimitado)','clientes',p.limite_clientes??'','number','min="0"')}
  ${input('Serviços por mês (vazio = ilimitado)','servicos',p.limite_servicos_mes??'','number','min="0"')}
+ ${input('Usuários com login (vazio = ilimitado)','usuarios',p.limite_usuarios??'','number','min="1"')}
  ${input('Ordem','ordem',p.ordem??0,'number','required')}
  ${select('Ativo','ativo',[['true','Sim'],['false','Não']],String(p.ativo??true))}
  <label class="field">Recursos (JSON)<textarea name="recursos" rows="4" required>${esc(JSON.stringify(p.recursos||{},null,2))}</textarea></label>
@@ -213,7 +214,7 @@ function planoForm(p={}){
 }
 C.views.planos={
  async load(){return C.table('planos',t=>t.select('*').order('ordem'))},
- html(plans){return h('Planos','Valores novos não são aplicados retroativamente.',button('Novo plano','id="new-plan"'))+card(`<div class="table-wrap"><table><thead><tr>${['Plano','Preço','Clientes','Serviços/mês','Ativo','Ações'].map(s=>`<th>${s}</th>`).join('')}</tr></thead><tbody>${plans.map(p=>`<tr>${td('Plano',esc(p.nome))}${td('Preço',brl(p.preco_mensal_centavos))}${td('Clientes',p.limite_clientes??'∞')}${td('Serviços/mês',p.limite_servicos_mes??'∞')}${td('Ativo',p.ativo?'Sim':'Não')}${td('Ações',`<div class="stack horizontal"><button class="btn outline compact" data-edit-plan="${esc(p.id)}">Editar</button><button class="btn outline compact" data-apply-plan="${esc(p.id)}">Aplicar preço às contas</button><button class="btn outline compact" data-del-plan="${esc(p.id)}">Excluir</button></div>`)}</tr>`).join('')}</tbody></table></div>`)},
+ html(plans){return h('Planos','Valores novos não são aplicados retroativamente.',button('Novo plano','id="new-plan"'))+card(`<div class="table-wrap"><table><thead><tr>${['Plano','Preço','Clientes','Serviços/mês','Usuários','Ativo','Ações'].map(s=>`<th>${s}</th>`).join('')}</tr></thead><tbody>${plans.map(p=>`<tr>${td('Plano',esc(p.nome))}${td('Preço',brl(p.preco_mensal_centavos))}${td('Clientes',p.limite_clientes??'∞')}${td('Serviços/mês',p.limite_servicos_mes??'∞')}${td('Usuários',p.limite_usuarios??'∞')}${td('Ativo',p.ativo?'Sim':'Não')}${td('Ações',`<div class="stack horizontal"><button class="btn outline compact" data-edit-plan="${esc(p.id)}">Editar</button><button class="btn outline compact" data-apply-plan="${esc(p.id)}">Aplicar preço às contas</button><button class="btn outline compact" data-del-plan="${esc(p.id)}">Excluir</button></div>`)}</tr>`).join('')}</tbody></table></div>`)},
  bind(root,plans){root.querySelector('#new-plan').onclick=()=>editPlan();root.querySelectorAll('[data-edit-plan]').forEach(b=>b.onclick=()=>editPlan(plans.find(x=>x.id===b.dataset.editPlan)));
  root.querySelectorAll('[data-del-plan]').forEach(b=>b.onclick=async()=>{if(!await C.ask('Excluir plano','Planos vinculados a contas não poderão ser excluídos.','Excluir'))return; if(await C.action(()=>C.table('planos',t=>t.delete().eq('id',b.dataset.delPlan))))C.render()});
  root.querySelectorAll('[data-apply-plan]').forEach(b=>b.onclick=async()=>{const p=plans.find(x=>x.id===b.dataset.applyPlan);if(!await C.ask('Alterar contratos existentes',`ATENÇÃO: todos os assinantes do plano ${p.nome} passarão a ter o preço contratado de ${brl(p.preco_mensal_centavos)}. Esta ação é registrada na auditoria.`, 'Aplicar novo preço'))return;
@@ -221,7 +222,7 @@ C.views.planos={
 };
 function editPlan(p){C.modal(p?'Editar plano':'Novo plano',planoForm(p||{}),box=>{box.querySelector('form').onsubmit=async e=>{
  e.preventDefault();const d=new FormData(e.currentTarget);let recursos;try{recursos=JSON.parse(String(d.get('recursos')));if(!recursos||Array.isArray(recursos)||typeof recursos!=='object')throw Error('JSON de recursos deve ser um objeto')}catch(err){C.toast(err.message,true);return}
- const payload={nome:d.get('nome'),preco_mensal_centavos:Math.round(Number(d.get('preco'))*100),limite_clientes:d.get('clientes')===''?null:Number(d.get('clientes')),limite_servicos_mes:d.get('servicos')===''?null:Number(d.get('servicos')),ativo:d.get('ativo')==='true',ordem:Number(d.get('ordem')),recursos};
+ const payload={nome:d.get('nome'),preco_mensal_centavos:Math.round(Number(d.get('preco'))*100),limite_clientes:d.get('clientes')===''?null:Number(d.get('clientes')),limite_servicos_mes:d.get('servicos')===''?null:Number(d.get('servicos')),limite_usuarios:d.get('usuarios')===''?null:Number(d.get('usuarios')),ativo:d.get('ativo')==='true',ordem:Number(d.get('ordem')),recursos};
  if(p?.id)payload.id=p.id;
  if(p && p.preco_mensal_centavos!==payload.preco_mensal_centavos && !await C.ask('Confirmar mudança de preço',`Alterar preço de ${p.nome}? Contratos existentes manterão os valores acordados.`, 'Alterar preço'))return;
  if(await C.action(()=>C.table('planos',t=>t.upsert(payload).select('id')))){C.close();C.render()}
