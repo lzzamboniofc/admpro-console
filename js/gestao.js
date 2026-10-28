@@ -3,25 +3,70 @@
 'use strict';
 const {esc,brl,date,time,h,card,badge,empty,input,select,button,waLink}=C;
 const P=C.state.pagamentos ||= {aba:'pago',mes:'',pagina:1};
+P.pedidosAba ||= 'pendentes'; P.pedidosPagina ||= 1;
 const S=C.state.suporte ||= {tipo:'',status:'',pagina:1};
 const audit=C.state.auditoria ||= {pagina:1};
 function td(l,v){return `<td data-label="${esc(l)}">${v}</td>`}
 function payRow(p){return `<tr>${td('Negócio',`<a href="#/conta/${esc(p.conta_id)}">${esc(p.nome_negocio)}</a>`)}${td('Referência',esc(p.referencia))}${td('Valor',brl(p.valor_centavos))}${td('Status',badge(p.status))}${td('Forma',esc(p.forma||'—'))}${td('Data',date(p.pago_em||p.criado_em))}${td('Ações',`<div class="stack horizontal">${p.status==='pago'||p.status==='pendente'?button('Ajustar',`data-adjust-payment="${esc(p.id)}"`):'<small>Histórico preservado</small>'}${waLink(p.telefone)}</div>`)}</tr>`}
 function feedbackRow(f){return `<tr>${td('Conta',`<a href="#/conta/${esc(f.conta_id)}">${esc(f.nome_negocio)}</a>`)}${td('Tipo',esc(f.tipo))}${td('Status',badge(f.status))}${td('Mensagem',`<div class="prewrap">${esc(f.mensagem)}</div>${f.resposta?`<small>Resposta: ${esc(f.resposta)}</small>`:''}`)}${td('Data',time(f.criado_em))}${td('Ações',`<div class="stack horizontal"><button class="btn outline compact" data-reply="${esc(f.id)}">Responder</button>${waLink(f.telefone)}</div>`)}</tr>`}
+function pedidoPlanoRow(p){
+ const status={aguardando_pagamento:'Aguardando Pix',em_analise:'Pix informado · conferir',aprovado:'Aprovado',recusado:'Recusado',cancelado:'Cancelado'};
+ const acao=p.status==='em_analise'?'<button type="button" class="btn compact" data-aprovar-pedido="'+esc(p.id)+'">Confirmar Pix e ativar</button>':'';
+ const rejeitar=['aguardando_pagamento','em_analise'].includes(p.status)
+  ?button('Recusar pedido','data-recusar-pedido="'+esc(p.id)+'"'):'';
+ return '<article class="pedido-plano-console">'+
+ '<div class="pedido-plano-console-cabecalho"><div><a href="#/conta/'+esc(p.conta_id)+'"><strong>'+esc(p.nome_negocio)+'</strong></a>'+
+ '<p>'+esc(p.plano_anterior)+' → <b>'+esc(p.plano_solicitado)+'</b> · '+brl(p.valor_centavos)+'</p></div>'+
+ '<span class="badge '+(p.status==='em_analise'?'badge-atrasada':'')+'">'+esc(status[p.status]||p.status)+'</span></div>'+
+ '<small>Pedido: '+time(p.criado_em)+' · Pix declarado: '+time(p.declarado_em)+'</small>'+
+ (p.declaracao_cliente?'<p class="muted">Informações do cliente: '+esc(p.declaracao_cliente)+'</p>':'')+
+ (p.motivo_recusa?'<p class="error-text">Recusa: '+esc(p.motivo_recusa)+'</p>':'')+
+ '<div class="stack horizontal">'+acao+rejeitar+'</div></article>';
+}
+function pedidosPlanosHTML(r){
+ const filtros=[['pendentes','Pendentes'],['aprovado','Aprovados'],['recusado','Recusados'],['cancelado','Cancelados'],['todos','Todos']];
+ return card('<div class="section-head"><div><h2>Solicitações de planos via Pix</h2>'+
+ '<p class="muted">Somente confirmar após verificar o recebimento no extrato. O plano muda no mesmo ato em que o pagamento é registrado.</p></div>'+
+ '<span class="badge badge-atrasada">'+Number(r.para_conferir||0)+' Pix para conferir</span></div>'+
+ '<div class="tabs">'+filtros.map(([id,rotulo])=>'<button type="button" data-pedidos-tab="'+id+'" class="'+(P.pedidosAba===id?'active':'')+'">'+rotulo+'</button>').join('')+'</div>'+
+ ((r.itens||[]).length?r.itens.map(pedidoPlanoRow).join(''):empty('Nenhuma solicitação nesta situação.'))+
+ '<div class="pagination"><span>'+Number(r.total||0)+' pedidos · página '+P.pedidosPagina+'</span>'+
+ '<button type="button" class="btn outline compact" data-pedido-pagina="'+(P.pedidosPagina-1)+'" '+(P.pedidosPagina<=1?'disabled':'')+'>‹</button>'+
+ '<button type="button" class="btn outline compact" data-pedido-pagina="'+(P.pedidosPagina+1)+'" '+(P.pedidosPagina*25>=Number(r.total||0)?'disabled':'')+'>›</button></div>');
+}
 C.views.pagamentos={
- async load(){return Promise.all([C.rpc('console_pagamentos',{p_aba:P.aba,p_mes:P.mes,p_pagina:P.pagina}),C.rpc('console_feedbacks',{p_tipo:'pagamento',p_status:'aberto',p_pagina:1})]).then(([data,alerts])=>({data,alerts}))},
- html({data:r,alerts}){return h('Pagamentos','Conferência, cobrança e registros manuais.',button('Registrar pagamento','id="pay-new"'))+
+ async load(){return Promise.all([
+ C.rpc('console_pagamentos',{p_aba:P.aba,p_mes:P.mes,p_pagina:P.pagina}),
+ C.rpc('console_feedbacks',{p_tipo:'pagamento',p_status:'aberto',p_pagina:1}),
+ C.rpc('console_pedidos_plano',{p_situacao:P.pedidosAba,p_pagina:P.pedidosPagina})
+]).then(([data,alerts,pedidos])=>({data,alerts,pedidos}))},
+ html({data:r,alerts,pedidos}){return h('Pagamentos','Conferência, cobrança e registros manuais.',button('Registrar pagamento','id="pay-new"'))+
+  pedidosPlanosHTML(pedidos)+
   `<div class="tabs" role="tablist">${[['pago','Recebidos'],['pendente','Pendentes'],['atrasado','Atrasados'],['estornado','Estornados'],['cancelado','Cancelados']].map(([id,title])=>`<button type="button" role="tab" aria-selected="${id===P.aba}" data-tab="${id}" class="${P.aba===id?'active':''}">${title}</button>`).join('')}</div>`+
   card(`<div class="filter-line">${input('Referência / mês','mes',P.mes,'month')}<button type="button" class="btn outline" id="pay-filter">Aplicar filtro</button></div><div class="mini-stats"><span>Total de registros: <b>${r.total}</b></span><span>Soma filtrada: <b>${brl(r.total_centavos)}</b></span></div>`)+
   card(`<h2>${P.aba==='pago'?'Pagamentos recebidos':P.aba==='pendente'?'Pagamentos pendentes':P.aba==='estornado'?'Estornos registrados':P.aba==='cancelado'?'Pagamentos cancelados':'Pagamentos atrasados'}</h2>`+
     (r.itens.length?`<div class="table-wrap"><table><thead><tr>${['Negócio','Referência','Valor','Status','Forma','Data','Ações'].map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>${r.itens.map(payRow).join('')}</tbody></table></div>`:empty('Nenhum pagamento encontrado.'))+C.pagination(r.total,P.pagina))+
   card(`<h2>Avisos “Já paguei” para conferência</h2><p class="muted">O aviso não confirma pagamento automaticamente.</p>${alerts.itens?.length?alerts.itens.map(f=>`<div class="action-row"><div><a href="#/conta/${esc(f.conta_id)}"><b>${esc(f.nome_negocio)}</b></a><p>${esc(f.mensagem)}</p><small>${time(f.criado_em)}</small></div><div class="stack horizontal"><button class="btn compact" data-confirm-alert="${esc(f.id)}">Confirmar</button><button class="btn outline compact" data-refuse-alert="${esc(f.id)}">Recusar</button></div></div>`).join(''):empty('Nenhum aviso pendente.')}`);
  },
- bind(root,{alerts,data}){
+ bind(root,{alerts,data,pedidos}){
   root.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{P.aba=b.dataset.tab;P.pagina=1;C.render()});
   root.querySelector('#pay-filter').onclick=()=>{P.mes=root.querySelector('[name="mes"]').value;P.pagina=1;C.render()};
   C.bindPages(root,p=>{P.pagina=p;C.render()});
   root.querySelector('#pay-new').onclick=()=>selectAccountForPayment();
+   root.querySelectorAll('[data-pedidos-tab]').forEach(b=>b.onclick=()=>{
+     P.pedidosAba=b.dataset.pedidosTab;P.pedidosPagina=1;C.render();
+   });
+   root.querySelectorAll('[data-pedido-pagina]').forEach(b=>b.onclick=()=>{
+     P.pedidosPagina=Number(b.dataset.pedidoPagina);C.render();
+   });
+   root.querySelectorAll('[data-aprovar-pedido]').forEach(b=>b.onclick=()=>{
+     const pedido=(pedidos?.itens||[]).find(x=>x.id===b.dataset.aprovarPedido);
+     if(pedido)confirmarPedidoPlano(pedido);
+   });
+   root.querySelectorAll('[data-recusar-pedido]').forEach(b=>b.onclick=()=>{
+     const pedido=(pedidos?.itens||[]).find(x=>x.id===b.dataset.recusarPedido);
+     if(pedido)recusarPedidoPlano(pedido);
+   });
   root.querySelectorAll('[data-adjust-payment]').forEach(b=>b.onclick=()=>{
     const p=(data?.itens||[]).find(x=>x.id===b.dataset.adjustPayment);if(p)C.adjustPayment(p);
   });
@@ -33,6 +78,48 @@ C.views.pagamentos={
   root.querySelectorAll('[data-refuse-alert]').forEach(b=>b.onclick=()=>{const f=alerts.itens.find(x=>x.id===b.dataset.refuseAlert);if(f)replyDialog(f,true)});
  }
 };
+function confirmarPedidoPlano(p){
+ if(p.status!=='em_analise')return;
+ const hoje=new Intl.DateTimeFormat('sv-SE',{timeZone:'America/Sao_Paulo'}).format(new Date());
+ C.modal('Conferir Pix e ativar plano',`<div class="payment-adjust-summary"><p><b>${esc(p.nome_negocio)}</b></p>
+ <p>De <b>${esc(p.plano_anterior)}</b> para <b>${esc(p.plano_solicitado)}</b></p>
+ <p>Valor a conferir: <strong>${brl(p.valor_centavos)}</strong></p>
+ <p>Chave informada ao assinante: ${esc(p.pix_chave)}<br>Beneficiário: ${esc(p.pix_beneficiario)}</p>
+ <p>Pedido criado em: ${time(p.criado_em)}</p></div>
+ <form id="confirmar-pedido-form" class="form-grid">
+ ${input('Data em que recebeu o Pix','pago_em',hoje,'date','required')}
+ <label class="field">Observações (opcional)<textarea name="observacao" maxlength="1500" placeholder="Identificação da transação ou conferência no extrato"></textarea></label>
+ <p class="muted">Confira no extrato o valor de ${brl(p.valor_centavos)}. Confirmar fará duas ações atômicas: registrar o Pix recebido e mudar a conta para ${esc(p.plano_solicitado)}. O próximo vencimento será um mês após a data informada.</p>
+ <div class="actions"><button class="btn outline" type="button" id="pedido-voltar">Voltar</button>
+ <button class="btn" type="submit">Confirmar Pix e ativar</button></div></form>`,box=>{
+   box.querySelector('#pedido-voltar').onclick=C.close;
+   box.querySelector('form').onsubmit=async e=>{
+     e.preventDefault();
+     const f=new FormData(e.currentTarget),dia=String(f.get('pago_em'));
+     if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(dia)){C.toast('Data inválida.',true);return}
+     const dataHora=dia===hoje?new Date().toISOString():dia+'T12:00:00-03:00';
+     if(!await C.ask('Confirmar recebimento no extrato',`Você conferiu o Pix de ${brl(p.valor_centavos)}? Após confirmar, o plano ${p.plano_solicitado} será ativado imediatamente e o pagamento será registrado.`,'Confirmar recebimento'))return;
+     if(await C.action(()=>C.rpc('console_confirmar_pedido_plano',{
+       p_pedido:p.id,p_pago_em:dataHora,p_observacao:String(f.get('observacao')||'')
+     }),'Pix confirmado e plano ativado')){C.close();C.render();}
+   };
+ });
+}
+function recusarPedidoPlano(p){
+ C.modal('Recusar solicitação de plano',`<p>Pedido de ${esc(p.nome_negocio)} para ${esc(p.plano_solicitado)}.</p>
+ <form id="recusar-pedido-form" class="form-grid"><label class="field">Motivo da recusa
+ <textarea name="motivo" required minlength="5" maxlength="1000" rows="3" placeholder="Por exemplo: pagamento não localizado no extrato"></textarea></label>
+ <p class="muted">O cliente verá o motivo e poderá fazer uma nova solicitação. Nenhum pagamento será registrado nem o plano alterado.</p>
+ <div class="actions"><button class="btn outline" type="button" id="recusar-voltar">Voltar</button><button class="btn danger-btn" type="submit">Recusar pedido</button></div></form>`,box=>{
+   box.querySelector('#recusar-voltar').onclick=C.close;
+   box.querySelector('form').onsubmit=async e=>{
+    e.preventDefault();const motivo=String(new FormData(e.currentTarget).get('motivo')||'').trim();
+    if(motivo.length<5){C.toast('Informe o motivo da recusa.',true);return}
+    if(!await C.ask('Recusar pedido','Confirma a recusa? O cliente poderá solicitar novamente.','Recusar'))return;
+    if(await C.action(()=>C.rpc('console_recusar_pedido_plano',{p_pedido:p.id,p_motivo:motivo}),'Pedido recusado')){C.close();C.render();}
+   };
+ });
+}
 async function selectAccountForPayment(){
  C.modal('Registrar pagamento',`<form id="find-account-form">${input('Nome, telefone ou e-mail','busca','','search','required')}<div class="actions"><button class="btn" type="submit">Pesquisar conta</button></div></form><div id="account-results"></div>`,box=>{
   box.querySelector('form').onsubmit=async e=>{
