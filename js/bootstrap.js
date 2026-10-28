@@ -46,7 +46,7 @@ async function atualizarContadores(){
     C.toast('Novo Pix informado! Confira a solicitação em Pagamentos.');
   }
   ultimoTotal=total;ultimoPixParaConferir=conferir;
-  if(mudou&&!$('#modal').open&&['inicio','pagamentos'].includes(C.route().name))await C.render();
+  if(mudou&&!$('#modal').open&&['inicio','pagamentos','suporte'].includes(C.route().name))await C.render();
  }catch(e){console.warn('Atualização de solicitações e suporte:',e.message)}
  finally{atualizandoContadores=false}
 }
