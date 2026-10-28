@@ -32,3 +32,14 @@ html[data-theme=dark] .badge-estornado,html[data-theme=dark] .badge-cancelado{
 }
 .payment-adjust-summary{grid-column:1/-1;padding:15px;border:1px solid var(--line);background:var(--bg);border-radius:12px}
 .payment-adjust-summary p{margin:6px 0 0}
+
+/* Solicitações de troca de plano pelo Pix - Console. */
+.pedido-plano-console{padding:17px 0;border-top:1px solid var(--line);display:grid;gap:10px}
+.pedido-plano-console:first-of-type{border-top:0}
+.pedido-plano-console-cabecalho{display:flex;align-items:flex-start;justify-content:space-between;gap:13px;flex-wrap:wrap}
+.pedido-plano-console-cabecalho p{margin:4px 0 0}
+.pedido-plano-console>small{display:block;line-height:1.5}
+.pedido-plano-console>.stack{gap:8px}
+.pedido-plano-console .badge{max-width:100%;white-space:normal}
+.pedido-plano-console .btn{white-space:normal}
+@media(max-width:700px){.pedido-plano-console .stack.horizontal .btn{flex:1 1 auto}}
